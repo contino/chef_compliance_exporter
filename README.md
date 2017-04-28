@@ -79,6 +79,8 @@ Please note that we run the exporter within the same host in Prometheus in this 
 | `PORT`| Yes | 9243 | Metrics server port |
 | `REFRESH_TOKEN`| *[1]* Yes | | Refresh token that is needed to auth Chef Compliance Server |
 | `WAIT_BETWEEN_METRIC_POLL` | No | 60 | Duration between to fetch metrics from Chef Compliance Server<br />Curious about why we need this ? Please refer to [FAQ][faq] |
+| `COMPLIANCE_USERNAME` | No | `chef_compliance_exporter` | The username that is used in Chef Compliance |
+| `COMPLIANCE_ENVIRONMENT` | No | `default` | The environment that is used in Chef Compliance Scans |
 
 *[1]* `REFRESH_TOKEN`s are permanent to generate Auth Tokens for Chef Compliance Server. In order to find out your `REFRESH_TOKEN` please follow [API Documentation](https://docs.chef.io/api_compliance.html).
 

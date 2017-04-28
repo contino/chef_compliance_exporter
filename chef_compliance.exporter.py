@@ -12,6 +12,8 @@ PORT_NUMBER = os.environ.get('PORT', 9243)
 REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', '')
 API_URL = os.environ.get("API_URL", '')
 WAIT_BETWEEN_METRIC_POLL = os.environ.get("SLEEP_DURATION", 60)
+COMPLIANCE_USERNAME = os.environ.get('COMPLIANCE_USERNAME', "chef_compliance_exporter")
+COMPLIANCE_ENVIRONMENT = os.environ.get("COMPLIANCE_ENVIRONMENT", "default")
 scans = {}
 metrics = []
 timestamp = False
@@ -19,6 +21,14 @@ timestamp = False
 if REFRESH_TOKEN == "" or API_URL == "":
     print "Please set REFRESH_TOKEN and API_URL environment variables before you run."
     sys.exit(1)
+
+print "Initialising Chef Compliance Exporter"
+print "PORT_NUMBER              : "+str(PORT_NUMBER)
+print "REFRESH_TOKEN            : "+REFRESH_TOKEN
+print "API_URL                  : "+API_URL
+print "WAIT_BETWEEN_METRIC_POLL : "+str(WAIT_BETWEEN_METRIC_POLL)
+print "COMPLIANCE_USERNAME      : "+COMPLIANCE_USERNAME
+print "COMPLIANCE_ENVIRONMENT   : "+COMPLIANCE_ENVIRONMENT
 
 class chefComplianceExporterHandler(BaseHTTPRequestHandler):
 
@@ -79,7 +89,7 @@ class ChefComplianceServer:
             self.api_token = response[u'access_token']
 
     def get_node_list(self):
-        response = self.api.get('api/owners/eerkunt/envs/default/nodes', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
+        response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/envs/'+COMPLIANCE_ENVIRONMENT+'/nodes', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
         for nodeId in response:
             self.nodes.append(nodeId[u'id'])
             self.scans[nodeId[u'id']] = {
@@ -89,7 +99,7 @@ class ChefComplianceServer:
             }
 
     def get_last_scan_id(self, offset):
-        response = self.api.get('api/owners/eerkunt/scans', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
+        response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/scans', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
         if len(response) > offset:
             self.latest_scan_id = response[len(response)-offset][u'id']
             print "Scan ID : "+self.latest_scan_id
@@ -102,20 +112,26 @@ class ChefComplianceServer:
 
         self.get_node_list()
         offset = 0
+        errorOccured = False
 
         while len(self.nodes) > 0:
             offset += 1
             self.get_last_scan_id(offset)
-            response = self.api.get('api/owners/eerkunt/scans/'+self.latest_scan_id+'/nodes', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
-            for scan in response:
-                if scan[u'node'] in self.nodes:
-                    print "=> Found scan summary for "+scan[u'node']
-                    self.scans[scan[u'node']][u'patchlevelSummary'] = scan[u'patchlevelSummary']
-                    self.scans[scan[u'node']][u'complianceSummary'] = scan[u'complianceSummary']
-                    self.nodes.remove(scan[u'node'])
 
-        scans = self.scans
-        timestamp = True
+            if self.latest_scan_id:
+                response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/scans/'+self.latest_scan_id+'/nodes', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
+                for scan in response:
+                    if scan[u'node'] in self.nodes:
+                        print "=> Found scan summary for "+scan[u'node']
+                        self.scans[scan[u'node']][u'patchlevelSummary'] = scan[u'patchlevelSummary']
+                        self.scans[scan[u'node']][u'complianceSummary'] = scan[u'complianceSummary']
+                        self.nodes.remove(scan[u'node'])
+            else:
+                self.nodes = []
+                errorOccured = True
+
+        if errorOccured is False:
+            scans = self.scans
 
 class ThreadHandle (threading.Thread):
         def __init__(self, threadID):
@@ -129,20 +145,21 @@ class ThreadHandle (threading.Thread):
                 fetch_metrics()
 
 def format_metrics():
-    metrics.append('compliance_scanned_node_count '+str(len(scans)))
-    for node in scans:
-        metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="major"} '+str(scans[node][u'complianceSummary'][u'major']))
-        metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="skipped"} '+str(scans[node][u'complianceSummary'][u'skipped']))
-        metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="success"} '+str(scans[node][u'complianceSummary'][u'success']))
-        metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="critical"} '+str(scans[node][u'complianceSummary'][u'critical']))
-        metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="total"} '+str(scans[node][u'complianceSummary'][u'total']))
-        metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="minor"} '+str(scans[node][u'complianceSummary'][u'minor']))
+    if len(scans) > 0:
+        metrics.append('compliance_scanned_node_count '+str(len(scans)))
+        for node in scans:
+            metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="major"} '+str(scans[node][u'complianceSummary'][u'major']))
+            metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="skipped"} '+str(scans[node][u'complianceSummary'][u'skipped']))
+            metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="success"} '+str(scans[node][u'complianceSummary'][u'success']))
+            metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="critical"} '+str(scans[node][u'complianceSummary'][u'critical']))
+            metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="total"} '+str(scans[node][u'complianceSummary'][u'total']))
+            metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="minor"} '+str(scans[node][u'complianceSummary'][u'minor']))
 
-        metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="major"} '+str(scans[node][u'patchlevelSummary'][u'major']))
-        metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="success"} '+str(scans[node][u'patchlevelSummary'][u'success']))
-        metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="critical"} '+str(scans[node][u'patchlevelSummary'][u'critical']))
-        metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="total"} '+str(scans[node][u'patchlevelSummary'][u'total']))
-        metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="minor"} '+str(scans[node][u'patchlevelSummary'][u'minor']))
+            metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="major"} '+str(scans[node][u'patchlevelSummary'][u'major']))
+            metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="success"} '+str(scans[node][u'patchlevelSummary'][u'success']))
+            metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="critical"} '+str(scans[node][u'patchlevelSummary'][u'critical']))
+            metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="total"} '+str(scans[node][u'patchlevelSummary'][u'total']))
+            metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="minor"} '+str(scans[node][u'patchlevelSummary'][u'minor']))
 
 def init_http_server():
     try:
