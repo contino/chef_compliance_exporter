@@ -15,6 +15,8 @@ Easiest way to run the metrics is via Docker image.
 # docker run -d -p 9243:9243              \
   -e API_URL=<chef_compliance_url>        \
   -e PORT=9243                            \
+  -e REFRESH_TOKEN=<your_refresh_token>   \
+  -e COMPLIANCE_USERNAME=<your_chef_user> \
   --name chef_compliance_metrics          \
   eerkunt/prometheus_chef_compliance_exporter:0.1.0
 ```
