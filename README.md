@@ -18,7 +18,7 @@ Easiest way to run the metrics is via Docker image.
   -e REFRESH_TOKEN=<your_refresh_token>   \
   -e COMPLIANCE_USERNAME=<your_chef_user> \
   --name chef_compliance_metrics          \
-  eerkunt/prometheus_chef_compliance_exporter:0.1.0
+  eerkunt/prometheus_chef_compliance_exporter
 ```
 Then add a new [Prometheus][prometheus] target by changing prometheus.yml file ;
 
