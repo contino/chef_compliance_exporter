@@ -8,10 +8,10 @@ import time
 
 requests.packages.urllib3.disable_warnings()
 
-PORT_NUMBER = os.environ.get('PORT', 9243)
+PORT_NUMBER = int(os.environ.get('PORT', 9243))
 REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', '')
 API_URL = os.environ.get("API_URL", '')
-WAIT_BETWEEN_METRIC_POLL = os.environ.get("SLEEP_DURATION", 60)
+WAIT_BETWEEN_METRIC_POLL = int(os.environ.get("SLEEP_DURATION", 60))
 COMPLIANCE_USERNAME = os.environ.get('COMPLIANCE_USERNAME', "chef_compliance_exporter")
 COMPLIANCE_ENVIRONMENT = os.environ.get("COMPLIANCE_ENVIRONMENT", "default")
 scans = {}
