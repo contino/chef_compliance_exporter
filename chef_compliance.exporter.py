@@ -100,8 +100,9 @@ class ChefComplianceServer:
 
     def get_last_scan_id(self, offset):
         response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/scans', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
+        print response
         if len(response) > offset:
-            self.latest_scan_id = response[len(response)-offset][u'id']
+            self.latest_scan_id = response[(-1)+offset][u'id']
             print "Scan ID : "+self.latest_scan_id
         else:
             print "\n\n\nWARNING: Can not find "+str(len(self.nodes))+" hostnames in the scans.\n"
