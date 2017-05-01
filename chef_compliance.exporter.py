@@ -5,6 +5,7 @@ import os, sys
 import requests.packages.urllib3
 import threading
 import time
+import operator
 
 requests.packages.urllib3.disable_warnings()
 
@@ -100,9 +101,9 @@ class ChefComplianceServer:
 
     def get_last_scan_id(self, offset):
         response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/scans', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
-        print response
-        if len(response) > offset:
-            self.latest_scan_id = response[(-1)+offset][u'id']
+        result_array = sorted(response, key=operator.itemgetter(u'end'), reverse=True)
+        if len(result_array) > offset:
+            self.latest_scan_id = result_array[(-1)+offset][u'id']
             print "Scan ID : "+self.latest_scan_id
         else:
             print "\n\n\nWARNING: Can not find "+str(len(self.nodes))+" hostnames in the scans.\n"
