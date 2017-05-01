@@ -132,6 +132,7 @@ class ChefComplianceServer:
                 self.nodes = []
                 errorOccured = True
 
+        scans = {}
         if errorOccured is False:
             scans = self.scans
 
@@ -147,7 +148,10 @@ class ThreadHandle (threading.Thread):
                 fetch_metrics()
 
 def format_metrics():
+    global metrics
+
     if len(scans) > 0:
+        metrics = []
         metrics.append('compliance_scanned_node_count '+str(len(scans)))
         for node in scans:
             metrics.append('compliance_scan_result{hostname="'+scans[node][u'hostname']+'", severity="major"} '+str(scans[node][u'complianceSummary'][u'major']))
