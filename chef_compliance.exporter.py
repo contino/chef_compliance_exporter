@@ -121,13 +121,29 @@ class ChefComplianceServer:
             self.get_last_scan_id(offset)
 
             if self.latest_scan_id:
-                response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/scans/'+self.latest_scan_id+'/nodes', headers={ 'Authorization': 'Bearer '+self.api_token }, verify=False)
+                response = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/scans/'+self.latest_scan_id+'/nodes',   \
+                                            headers={ 'Authorization': 'Bearer '+self.api_token },                  \
+                                            verify=False)
                 for scan in response:
                     if scan[u'node'] in self.nodes:
                         print "=> Found scan summary for "+scan[u'node']
                         self.scans[scan[u'node']][u'patchlevelSummary'] = scan[u'patchlevelSummary']
                         self.scans[scan[u'node']][u'complianceSummary'] = scan[u'complianceSummary']
+                        self.scans[scan[u'node']][u'failures'] = []
+
+                        # Get the failed results here
+                        failedResponse = self.api.get('api/owners/'+COMPLIANCE_USERNAME+'/envs/'+COMPLIANCE_ENVIRONMENT+'/nodes/'+scan[u'node']+'/compliance', \
+                                            headers={ 'Authorization': 'Bearer '+self.api_token },                                                             \
+                                            verify=False)
                         self.nodes.remove(scan[u'node'])
+                        for result in failedResponse:
+                            for line in result[u'log'].split("\n"):
+                                if line.startswith('Failure: '):
+                                    self.scans[scan[u'node']][u'failures'].append( {
+                                        'error_message': line,
+                                        'rule_name': result[u'rule']
+                                        })
+                                    print "ALERT: Failed check: "+line+" on rule "+result[u'rule']
             else:
                 self.nodes = []
                 errorOccured = True
@@ -166,6 +182,9 @@ def format_metrics():
             metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="critical"} '+str(scans[node][u'patchlevelSummary'][u'critical']))
             metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="total"} '+str(scans[node][u'patchlevelSummary'][u'total']))
             metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="minor"} '+str(scans[node][u'patchlevelSummary'][u'minor']))
+
+            for failed_item in scans[node][u'failures']:
+                metrics.append('compliance_scan_failures{hostname="'+scans[node][u'hostname']+'", error_msg="'+failed_item[u'error_message']+'", rule="'+failed_item[u'rule_name']+'"} 1')
 
 def init_http_server():
     try:
