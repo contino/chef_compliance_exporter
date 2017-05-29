@@ -6,6 +6,8 @@ import requests.packages.urllib3
 import threading
 import time
 import operator
+from string import maketrans
+
 
 requests.packages.urllib3.disable_warnings()
 
@@ -163,6 +165,9 @@ class ThreadHandle (threading.Thread):
             elif self.threadID == "metrics":
                 fetch_metrics()
 
+def escape_chars(string):
+    return string.replace("\"", "")
+
 def format_metrics():
     global metrics
 
@@ -184,7 +189,7 @@ def format_metrics():
             metrics.append('compliance_scan_patchlevel{hostname="'+scans[node][u'hostname']+'", severity="minor"} '+str(scans[node][u'patchlevelSummary'][u'minor']))
 
             for failed_item in scans[node][u'failures']:
-                metrics.append('compliance_scan_failures{hostname="'+scans[node][u'hostname']+'", error_msg="'+failed_item[u'error_message']+'", rule="'+failed_item[u'rule_name']+'"} 1')
+                metrics.append('compliance_scan_failures{hostname="'+scans[node][u'hostname']+'", error_msg="'+escape_chars(failed_item[u'error_message'])+'", rule="'+failed_item[u'rule_name']+'"} 1')
 
 def init_http_server():
     try:
